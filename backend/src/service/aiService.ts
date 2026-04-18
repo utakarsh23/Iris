@@ -1,10 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import config from "../config";
 import { generateEventHash } from "./hashingService";
+import { IEvent } from "../model/eventsSchema";
+import { IDailySummary, DailySummary } from "../model/dailySummary";
+import { logger } from "../utils/logger";
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-export async function summarizeEmails(emails: any[]): Promise<any[]> {
+
+
+async function summarizeEmails(emails: any[]): Promise<any[]> {
     if (!emails || emails.length === 0) return [];
 
     const emailsContext = emails.map((e, index) =>
@@ -60,14 +66,17 @@ export async function summarizeEmails(emails: any[]): Promise<any[]> {
 
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        logger.info(`Sending ${emails.length} emails to Gemini AI for extraction`);
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const aiGenerateText = response.text() || "[]";
 
         const parsedEvents = JSON.parse(aiGenerateText.trim().replace(/^```json|```$/g, ''));
 
-        if (!Array.isArray(parsedEvents)) return [];
+        if (!Array.isArray(parsedEvents)) {
+            logger.warn("AI returned non-array JSON structure");
+            return [];
+        }
 
         // Merge AI extracted data with your deterministic, uncompromised data
         return parsedEvents.map(event => {
@@ -85,12 +94,50 @@ export async function summarizeEmails(emails: any[]): Promise<any[]> {
 
                 // GUARANTEED SAFE DATA directly from the email source
                 senderEmail: originalEmail?.from || "Unknown",
+                emailUrl: originalEmail?.url || "",
                 // You can add more mapping here if needed (e.g. emailDate)
             };
         });
 
     } catch (error) {
-        console.error("Error generating summary from Gemini:", error);
+        logger.error("Error generating summary from Gemini", error);
         return [];
     }
 }
+
+async function dailyMailSummary(events: any[]): Promise<string> {
+    try {
+        if (!events || events.length === 0) {
+            return "No tasks scheduled for today. Enjoy your free day!";
+        }
+
+        const context = events.map(e =>
+            `- ${e.title} (${e.priority} priority) at ${e.time || 'no time'}`
+        ).join('\n');
+
+        const prompt = `You are Iris, a personal schedule assistant. Summarise the user's day in ONE short casual sentence (max 20 words). Be friendly. Mention the most important task by name.\n\nToday's tasks:\n${context}`;
+
+        logger.info("Generating daily AI briefing");
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const summary = response.text()?.trim() || "Have a great day!";
+
+        // Save to DB
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        await DailySummary.findOneAndUpdate(
+            { date: today },
+            { summary },
+            { upsert: true, new: true }
+        );
+
+        logger.info(`Daily briefing saved: ${summary}`);
+        return summary;
+    } catch (error) {
+        logger.error("Error generating daily mail summary", error);
+        return "Couldn't generate today's summary.";
+    }
+}
+
+export { summarizeEmails, dailyMailSummary };

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { logger } from "../utils/logger";
 
 
 async function connectDB(uri: string) {
@@ -7,9 +8,9 @@ async function connectDB(uri: string) {
             throw new Error("MongoDB URI is not provided");
         }
         await mongoose.connect(uri);
-        console.log("MongoDB connected");
+        logger.info("MongoDB connected securely");
     } catch (error) {
-        console.error("Error connecting to MongoDB:", error);
+        logger.error("Error connecting to MongoDB", error);
         throw error;
     }
 }
@@ -20,9 +21,9 @@ async function disconnectDB() {
             return;
         }
         await mongoose.disconnect();
-        console.log("MongoDB disconnected");
+        logger.info("MongoDB disconnected");
     } catch (error) {
-        console.error("Error disconnecting from MongoDB:", error);
+        logger.error("Error disconnecting from MongoDB", error);
         throw error;
     }
 }

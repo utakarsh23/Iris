@@ -13,6 +13,7 @@ interface IEvent extends Document {
     priority: "ultra-high" | "high" | "medium" | "low";
     eventHash: string; //hash of the event to identify it in case of any update is recieved(title + eventType + senderEmail)
     isActive: boolean;
+    emailUrl?: string; // Permalink back to the source Gmail thread
 }
 
 //we are using this schema to store events, senderEmail & title are used to identify the event in case of any update is recieved(eg : if event is scheduled for later we can match both and verify if the event is same and update it instead of creating a new one)
@@ -62,6 +63,10 @@ const eventSchema = new mongoose.Schema<IEvent>({
     isActive: {
         type: Boolean,
         default: true
+    },
+    emailUrl: {
+        type: String,
+        required: false
     }
 }, { timestamps: true })
 

@@ -1,4 +1,5 @@
 const API_BASE = 'http://localhost:9001/event';
+const { shell, ipcRenderer } = require('electron');
 
 // DOM Elements
 const loading = document.getElementById('loading');
@@ -16,6 +17,8 @@ let searchTimeout = null;
 let trashedEvents = []; // UI-only trash — no backend calls
 
 const fetchMailsBtn = document.getElementById('fetchMailsBtn');
+const aiSummary = document.getElementById('aiSummary');
+const aiSummaryText = document.getElementById('aiSummaryText');
 
 // ========== TAB SWITCHING ==========
 tabs.forEach(tab => {
@@ -46,11 +49,11 @@ refreshBtn.addEventListener('click', () => {
 fetchMailsBtn.addEventListener('click', async () => {
     fetchMailsBtn.classList.add('loading');
     const originalText = fetchMailsBtn.innerHTML;
-    
+
     try {
         const res = await fetch(`${API_BASE}/load`);
         const data = await res.json();
-        
+
         if (res.ok) {
             // Wait a moment for GAS to process and hit webhook
             fetchMailsBtn.innerHTML = 'Sent!';
@@ -166,6 +169,12 @@ async function fetchEvents() {
         events = events.filter(e => !trashedIds.has(e._id));
 
         renderEvents(events);
+
+        // Ensure notifications are checked immediately on load!
+        if (currentTab === 'upcoming') {
+            checkNotifications(events);
+        }
+
         footerStatus.textContent = `Last updated: ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
     } catch (err) {
         console.error('Failed to fetch events:', err);
@@ -281,6 +290,11 @@ function createEventCard(event) {
     }
 
     card.innerHTML = `
+        <button class="open-url-btn" title="Open in Gmail" ${!event.emailUrl ? 'style="display:none;"' : ''}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+        </button>
         <button class="complete-btn" title="Mark as Completed" ${status === 'completed' ? 'disabled' : ''}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -319,13 +333,22 @@ function createEventCard(event) {
         }, 200);
     });
 
+    // Open URL
+    const openBtn = card.querySelector('.open-url-btn');
+    if (openBtn && event.emailUrl) {
+        openBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            shell.openExternal(event.emailUrl);
+        });
+    }
+
     const completeBtn = card.querySelector('.complete-btn');
     if (completeBtn && status !== 'completed') {
         completeBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             completeBtn.style.pointerEvents = 'none';
             completeBtn.style.opacity = '0.5';
-            
+
             try {
                 const res = await fetch(`${API_BASE}/update/${event._id}`, {
                     method: 'PUT',
@@ -338,11 +361,11 @@ function createEventCard(event) {
                     const content = card.querySelector('.event-content');
                     content.style.opacity = '0.6';
                     content.style.textDecoration = 'line-through';
-                    
+
                     const statusBadge = card.querySelector('.status-badge');
                     statusBadge.className = 'status-badge status-completed';
                     statusBadge.textContent = 'completed';
-                    
+
                     completeBtn.disabled = true;
                 }
             } catch (err) {
@@ -477,5 +500,140 @@ function showEmpty(icon, title, sub) {
     `;
 }
 
+// ========== NOTIFICATIONS ==========
+let notifiedMap = JSON.parse(localStorage.getItem('notifiedMap') || '{}');
+
+function saveNotified() {
+    localStorage.setItem('notifiedMap', JSON.stringify(notifiedMap));
+}
+
+async function checkNotifications(events) {
+    const now = new Date();
+
+    events.forEach(event => {
+        if (event.eventStatus === 'completed' || event.eventStatus === 'cancelled') return;
+
+        // Ensure event has a specific time
+        if (!event.time || event.time === "00:00") return;
+
+        const eventDateStr = new Date(event.date).toISOString().split('T')[0];
+        const eventDateTime = new Date(`${eventDateStr}T${event.time}:00`);
+
+        const diffMs = eventDateTime.getTime() - now.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+
+        const eventId1hr = `${event._id}-1hr`;
+        const eventId5min = `${event._id}-5min`;
+
+        // 1 Hour Warning (triggers between 55 and 60 mins before)
+        if (diffMins <= 60 && diffMins > 55 && !notifiedMap[eventId1hr]) {
+            ipcRenderer.send('show-notification', { title: 'Upcoming Event', body: `${event.title} starts in 1 hour!` });
+            notifiedMap[eventId1hr] = true;
+            saveNotified();
+        }
+
+        // 5 Minute Warning (triggers between 0 and 5 mins before)
+        if (diffMins <= 5 && diffMins > 0 && !notifiedMap[eventId5min]) {
+            ipcRenderer.send('show-notification', { title: 'Event Starting Soon', body: `${event.title} starts in 5 minutes!` });
+            notifiedMap[eventId5min] = true;
+            saveNotified();
+        }
+    });
+
+    // 6 AM Daily Briefing — fires between 6:00-6:59 AM (debug: 16:04)
+    const dateKey = now.toLocaleDateString();
+    const isDebug = now.getHours() === 16 && now.getMinutes() === 6;
+
+    if ((now.getHours() === 6 || isDebug) && !notifiedMap['daily-' + dateKey]) {
+        const todaysEvents = events.filter(e => {
+            const eDate = new Date(e.date).toISOString().split('T')[0];
+            const tDate = now.toISOString().split('T')[0];
+            return eDate === tDate;
+        });
+
+        if (todaysEvents.length > 0) {
+            let body = `You have ${todaysEvents.length} task${todaysEvents.length > 1 ? 's' : ''} scheduled for today.`;
+            const highPriority = todaysEvents.filter(e => e.priority === 'ultra-high' || e.priority === 'high');
+
+            if (highPriority.length > 0) {
+                body += ` Don't forget: ${highPriority[0].title}.`;
+            } else {
+                body += ` Have a great day!`;
+            }
+
+            ipcRenderer.send('show-notification', { title: 'Good Morning from Iris', body });
+        } else {
+            ipcRenderer.send('show-notification', { title: 'Good Morning from Iris', body: "Your schedule is clear for today. Enjoy!" });
+        }
+
+        notifiedMap['daily-' + dateKey] = true;
+        saveNotified();
+
+        // Fire second notification: AI briefing
+        try {
+            const res = await fetch(`${API_BASE}/summary`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.summary) {
+                    setTimeout(() => {
+                        ipcRenderer.send('show-notification', { title: 'Iris AI Briefing', body: data.summary });
+                    }, 3000); // 3s delay so notifications don't stack
+                    aiSummaryText.textContent = data.summary;
+                    aiSummary.classList.remove('hidden');
+                }
+            }
+        } catch (err) { /* silently fail */ }
+    }
+}
+
+// Background polling loop (every 1 minute)
+setInterval(async () => {
+    try {
+        const res = await fetch(`${API_BASE}/upcoming`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.events) {
+                // Pass directly to notification engine without polluting UI if not active tab
+                checkNotifications(data.events);
+
+                // If the user happens to have upcoming tab open, refresh it secretly
+                if (currentTab === 'upcoming' && !searchClear.classList.contains('hidden') === false) {
+                    const trashedIds = new Set(trashedEvents.map(e => e._id));
+                    const filteredEvents = data.events.filter(e => !trashedIds.has(e._id));
+                    renderEvents(filteredEvents);
+                }
+            }
+        }
+    } catch (err) {
+        // Silently fail in background if backend is offline
+    }
+}, 60000);
+
+// Listen for system wake from main process
+ipcRenderer.on('system-wake', async () => {
+    try {
+        const res = await fetch(`${API_BASE}/upcoming`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.events) checkNotifications(data.events);
+        }
+    } catch (err) { /* silently fail */ }
+});
+
+// ========== AI DAILY SUMMARY ==========
+async function fetchDailySummary() {
+    try {
+        const res = await fetch(`${API_BASE}/summary`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.summary) {
+                aiSummaryText.textContent = data.summary;
+                aiSummary.classList.remove('hidden');
+            }
+        }
+    } catch (err) { /* silently fail */ }
+}
+
 // ========== INIT ==========
 fetchEvents();
+fetchDailySummary();

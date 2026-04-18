@@ -4,6 +4,7 @@ import { connectDB, disconnectDB } from "./db/db";
 import eventRouter from "./api/eventRouter";
 import { processEmails } from "./service/pipelineService";
 import cron from "node-cron";
+import { logger } from "./utils/logger";
 
 const app = express();
 let server: any;
@@ -17,18 +18,18 @@ async function startServer() {
     app.use("/event", eventRouter);
 
     server = app.listen(config.port, () => {
-        console.log(`Server is running on port ${config.port}`);
+        logger.info(`Server is running natively on port ${config.port}`);
     });
 }
 
 async function closeServer() {
-    console.log("Shutting down gracefully...");
+    logger.info("Shutting down gracefully...");
 
     if (server) {
         server.close(async () => {
-            console.log("HTTP server closed.");
+            logger.info("HTTP server closed.");
             await disconnectDB();
-            console.log("Database disconnected. Process exiting...");
+            logger.info("Database disconnected. Process exiting...");
             process.exit(0);
         });
     } else {
@@ -42,14 +43,14 @@ async function init() {
         await startServer();
         // await startCron();
     } catch (error) {
-        console.error("Error starting server:", error);
+        logger.error("Error starting server", error);
         process.exit(1);
     }
 }
 
 async function startCron() {
     cron.schedule("* * * * *", async () => {
-        console.log("Cron job started");
+        logger.info("Cron job triggered automatically");
         await processEmails();
     });
 }
