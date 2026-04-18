@@ -16,6 +16,9 @@ async function startServer() {
     await connectDB(config.mongodb.uri);
 
     app.use("/event", eventRouter);
+    app.get("/health", (req, res) => {
+        res.send("Iris Working Fine");
+    });
 
     server = app.listen(config.port, () => {
         logger.info(`Server is running natively on port ${config.port}`);

@@ -162,8 +162,6 @@ function forwardEmailsToBackend() {
       body: latestMessage.getPlainBody() || "",
       url: threadUrl
     });
-    
-    threads[i].markRead();
   }
   
   if (emailsData.length === 0) return;
@@ -192,6 +190,12 @@ function forwardEmailsToBackend() {
 ```bash
 cd menubar
 npm install
+```
+
+Create a `.env` file in the `menubar` directory to point the app to your backend:
+
+```env
+API_BASE_URL=https://your-backend-url.onrender.com/event
 ```
 
 **Run in dev mode:**

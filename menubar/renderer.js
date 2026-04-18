@@ -1,5 +1,22 @@
-const API_BASE = 'http://localhost:9001/event';
+const fs = require('fs');
+const path = require('path');
 const { shell, ipcRenderer } = require('electron');
+
+let API_BASE = '';
+
+// Load .env explicitly for the frontend
+try {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const match = envContent.match(/^API_BASE_URL=(.*)$/m);
+        if (match && match[1]) {
+            API_BASE = match[1].trim();
+        }
+    }
+} catch (e) {
+    console.error('Failed to load frontend .env file:', e);
+}
 
 // DOM Elements
 const loading = document.getElementById('loading');
@@ -501,7 +518,9 @@ function showEmpty(icon, title, sub) {
 }
 
 // ========== NOTIFICATIONS ==========
-let notifiedMap = JSON.parse(localStorage.getItem('notifiedMap') || '{}');
+// Reset notification cache on every app restart
+localStorage.removeItem('notifiedMap');
+let notifiedMap = {};
 
 function saveNotified() {
     localStorage.setItem('notifiedMap', JSON.stringify(notifiedMap));
@@ -540,11 +559,10 @@ async function checkNotifications(events) {
         }
     });
 
-    // 6 AM Daily Briefing — fires between 6:00-6:59 AM (debug: 16:04)
+    // 6 AM Daily Briefing
     const dateKey = now.toLocaleDateString();
-    const isDebug = now.getHours() === 16 && now.getMinutes() === 6;
 
-    if ((now.getHours() === 6 || isDebug) && !notifiedMap['daily-' + dateKey]) {
+    if (now.getHours() === 6 && !notifiedMap['daily-' + dateKey]) {
         const todaysEvents = events.filter(e => {
             const eDate = new Date(e.date).toISOString().split('T')[0];
             const tDate = now.toISOString().split('T')[0];
@@ -608,6 +626,14 @@ setInterval(async () => {
         // Silently fail in background if backend is offline
     }
 }, 60000);
+
+// Ping backend /health endpoint every 10 minutes to keep Render instance awake
+setInterval(async () => {
+    try {
+        const healthUrl = API_BASE.replace('/event', '/health');
+        await fetch(healthUrl);
+    } catch (err) { /* silent */ }
+}, 600000);
 
 // Listen for system wake from main process
 ipcRenderer.on('system-wake', async () => {
