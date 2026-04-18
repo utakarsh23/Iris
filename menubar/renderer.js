@@ -330,7 +330,7 @@ function createEventCard(event) {
                 const res = await fetch(`${API_BASE}/update/${event._id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ eventStatus: 'COMPLETED' })
+                    body: JSON.stringify({ eventStatus: 'completed' })
                 });
 
                 if (res.ok) {
