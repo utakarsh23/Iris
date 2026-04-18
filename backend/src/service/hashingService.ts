@@ -6,4 +6,9 @@ function generateEventHash(title: string, eventType: string, senderEmail: string
     return crypto.createHash('sha256').update(rawString).digest('hex');
 }
 
-export { generateEventHash };
+function generateMailHash(mail: string): string {
+    const rawString = `${mail.trim().toLowerCase()}`;
+    return crypto.createHash('sha256').update(rawString).digest('hex');
+}
+
+export { generateEventHash, generateMailHash };

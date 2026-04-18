@@ -40,6 +40,11 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
     - "medium": Scheduled group activities, collaborative sessions, or non-critical but time-bound commitments
     - "low": Informational gatherings, optional workshops, or low-stakes participation events
 
+    STRICT TITLE FORMATTING:
+    - Extract ONLY the core event name or entity (e.g., "Build with AI Webinar", "Solution Challenge Prototype", "FLAT Internal Assessment 1").
+    - DO NOT include prefixes, statuses, or action verbs (e.g., strip "Reminder:", "Update:", "Rescheduled:", "Action Required:", "Join the", "Submit your").
+    - Follow a consistent, neutral Noun-Phrase pattern without filler words to ensure the exact same event heavily yields the exact same title string across multiple emails.
+
     The current date and time is: ${currentDate}. Use this to determine if an event is already missed.
 
     Return ONLY a raw JSON array. No markdown, no explanation, no wrapping.
@@ -49,7 +54,7 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
     [
       {
         "emailIndex": number, // MUST match the EmailIndex of the source email
-        "title": "Concise event title",
+        "title": "Exact stripped email Subject line",
         "description": "One-line description of what the user needs to do",
         "eventType": "ASSIGNMENT" | "EVENT" | "INTERVIEW" | "EXAM" | "MEETING" | "OTHER",
         "date": "YYYY-MM-DD",
@@ -115,7 +120,7 @@ async function dailyMailSummary(events: any[]): Promise<string> {
             `- ${e.title} (${e.priority} priority) at ${e.time || 'no time'}`
         ).join('\n');
 
-        const prompt = `You are Iris, a personal schedule assistant. Summarise the user's day in ONE short casual sentence (max 20 words). Be friendly. Mention the most important task by name.\n\nToday's tasks:\n${context}`;
+        const prompt = `You are Iris, a personal schedule assistant. Summarise the user's day in ONE short casual sentence (20-30 words). Be friendly. Mention the most important task by name.\n\nToday's tasks:\n${context}`;
 
         logger.info("Generating daily AI briefing");
         const result = await model.generateContent(prompt);

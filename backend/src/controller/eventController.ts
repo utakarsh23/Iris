@@ -1,10 +1,9 @@
 import { Event, IEvent } from "../model/eventsSchema";
 import { updateEvent, deleteEvent, getAllUpcomingEvents, eventsByDate, pastEvents, allEvents, searchEvents } from "../service/eventService";
 import { Request, Response } from 'express';
-import { processEmails, processWebhookEmails } from "../service/pipelineService";
+import { processWebhookEmails } from "../service/pipelineService";
 import { dailyMailSummary } from "../service/aiService";
 import { DailySummary } from "../model/dailySummary";
-import { IDailySummary } from "../model/dailySummary";
 import { logger } from "../utils/logger";
 import config from "../config";
 

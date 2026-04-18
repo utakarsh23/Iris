@@ -1,6 +1,8 @@
 import { summarizeEmails } from "./aiService";
 import { fetchRecentEmails } from "./mailService";
 import { saveEvents } from "./eventService";
+import { Mail } from "../model/emailsSchema";
+import { generateMailHash } from "../service/hashingService"
 
 
 import { logger } from "../utils/logger";
@@ -10,10 +12,10 @@ async function processEmails() {
         logger.info("Pipeline triggered: Manual email fetch initiated");
         const emails = await fetchRecentEmails();
         logger.info(`Fetched ${emails.length} emails from IMAP`);
-        
+
         const events = await summarizeEmails(emails);
         logger.info(`Extracted ${events.length} actionable events via AI`);
-        
+
         await saveEvents(events);
         logger.info("Successfully persisted extracted events to database");
         return events;
@@ -27,11 +29,37 @@ async function processEmails() {
 async function processWebhookEmails(emails: any[]) {
     try {
         logger.info(`Webhook triggered: Received ${emails.length} raw emails for processing`);
-        const events = await summarizeEmails(emails);
+
+        const nonExistingMails = [];
+        const hashesToSave = [];
+
+        for (const email of emails) {
+            // Compose a unique string for the email (thread URL + Date)
+            const uniqueString = `${email.url ?? ''}-${email.date ?? ''}`;
+            const hash = generateMailHash(uniqueString);
+
+            // Check if this specific email thread has already been processed by AI
+            const exists = await Mail.findOne({ mailHash: hash });
+            if (!exists) {
+                nonExistingMails.push(email);
+                hashesToSave.push(hash);
+            }
+        }
+
+        if (nonExistingMails.length === 0) {
+            logger.info("No new emails to process. All emails are already in DB.");
+            return [];
+        }
+
+        const events = await summarizeEmails(nonExistingMails);
         logger.info(`Extracted ${events.length} actionable events via AI`);
 
         await saveEvents(events);
         logger.info("Successfully persisted webhook events to database");
+
+        // Mark these emails as processed in the DB so we skip them next time
+        const mailDocs = hashesToSave.map(h => ({ mailHash: h, processed: true }));
+        await Mail.insertMany(mailDocs);
 
         return events;
     } catch (error) {

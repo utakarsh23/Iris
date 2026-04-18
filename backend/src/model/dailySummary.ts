@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { Document } from "mongoose";
 
 
-export interface IDailySummary extends Document {
+interface IDailySummary extends Document {
     date: Date;
     summary: string;
 }
@@ -12,4 +12,6 @@ const dailySummarySchema = new mongoose.Schema<IDailySummary>({
     summary: { type: String, required: true },
 }, { timestamps: true });
 
-export const DailySummary = mongoose.model<IDailySummary>("DailySummary", dailySummarySchema);
+const DailySummary = mongoose.model<IDailySummary>("DailySummary", dailySummarySchema);
+
+export { DailySummary, IDailySummary };
