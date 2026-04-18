@@ -128,4 +128,22 @@ async function searchEvents(query: string) {
     }
 }
 
-export { saveEvents, updateEventStatus, updateEvent, deleteEvent, getAllUpcomingEvents, eventsByDate, pastEvents, allEvents, searchEvents };
+async function markMissedEvents() {
+    try {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        const result = await Event.updateMany(
+            { isActive: true, eventStatus: 'pending', date: { $lt: startOfToday } },
+            { $set: { eventStatus: 'missed' } }
+        );
+
+        if (result.modifiedCount > 0) {
+            console.log(`Automatically marked ${result.modifiedCount} past events as missed.`);
+        }
+    } catch (error) {
+        console.error("Error marking missed events:", error);
+    }
+}
+
+export { saveEvents, updateEventStatus, updateEvent, deleteEvent, getAllUpcomingEvents, eventsByDate, pastEvents, allEvents, searchEvents, markMissedEvents };

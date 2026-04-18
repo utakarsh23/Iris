@@ -3,6 +3,7 @@ import config from "./config";
 import { connectDB, disconnectDB } from "./db/db";
 import eventRouter from "./api/eventRouter";
 import { processEmails } from "./service/pipelineService";
+import { markMissedEvents } from "./service/eventService";
 import cron from "node-cron";
 import { logger } from "./utils/logger";
 
@@ -44,7 +45,9 @@ async function closeServer() {
 async function init() {
     try {
         await startServer();
-        // await startCron();
+        // Run immediately on boot to catch missed events if server was offline
+        await markMissedEvents();
+        await startCron();
     } catch (error) {
         logger.error("Error starting server", error);
         process.exit(1);
@@ -52,10 +55,17 @@ async function init() {
 }
 
 async function startCron() {
-    cron.schedule("* * * * *", async () => {
-        logger.info("Cron job triggered automatically");
-        await processEmails();
+    // Run every hour at the top of the hour (e.g. 1:00, 2:00, 3:00)
+    cron.schedule("0 * * * *", async () => {
+        logger.info("Cron: Running hourly cleanup of missed events");
+        await markMissedEvents();
     });
+
+    // Keeping your previous 1-minute email processing cron commented/running below if you ever re-enable it
+    // cron.schedule("* * * * *", async () => {
+    //     logger.info("Cron job triggered automatically");
+    //     await processEmails();
+    // });
 }
 
 

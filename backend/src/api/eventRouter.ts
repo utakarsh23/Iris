@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { changeEvent, removeEvent, getUpcomingEvents, getEventsByDate, getPastEvents, getAllEvents, loadNewEvents, loadNewEventsWebhook, search, getDailySummary } from "../controller/eventController";
+import { getCalendarFeed } from "../controller/calendarController";
 
 
 const router = Router();
@@ -14,6 +15,6 @@ router.get("/load", loadNewEvents);
 router.get("/search", search);
 router.get("/summary", getDailySummary);
 router.post("/webhook", loadNewEventsWebhook);
-
+router.get("/calendar.ics", getCalendarFeed);
 
 export default router;

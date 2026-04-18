@@ -20,6 +20,7 @@ const config = {
         }
     },
     googleScriptUrl: process.env.GOOGLE_SCRIPT_URL!,
+    calendarToken: process.env.CALENDAR_TOKEN || "",
 };
 
 export default config;
