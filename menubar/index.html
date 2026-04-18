@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iris</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <span class="header-icon"></span>
+                <h1>Iris</h1>
+            </div>
+            <div class="header-actions">
+                <button class="primary-btn" id="fetchMailsBtn" title="Fetch New Mails">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Fetch
+                </button>
+                <button class="refresh-btn" id="refreshBtn" title="Refresh list">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M13.65 2.35A8 8 0 1 0 16 8h-2a6 6 0 1 1-1.76-4.24L10 6h6V0l-2.35 2.35z" fill="currentColor" transform="scale(0.85) translate(1,1)"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                <path d="M16 16L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Search events..." autocomplete="off" spellcheck="false">
+            <button class="search-clear hidden" id="searchClear">✕</button>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <button class="tab active" data-tab="upcoming">Upcoming</button>
+            <button class="tab" data-tab="past">Past</button>
+            <button class="tab" data-tab="all">All</button>
+            <button class="tab tab-trash" data-tab="trash" id="trashTab">
+                🗑️ <span class="trash-count hidden" id="trashCount">0</span>
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading events...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state hidden" id="emptyState">
+            <span class="empty-icon">🎉</span>
+            <p>No events found</p>
+            <span class="empty-sub">You're all clear!</span>
+        </div>
+
+        <!-- Events List -->
+        <div class="events-list hidden" id="eventsList"></div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <span class="footer-status" id="footerStatus">Last updated: —</span>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

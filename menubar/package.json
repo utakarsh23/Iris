@@ -1,0 +1,18 @@
+{
+  "name": "mail-scheduler-menubar",
+  "version": "1.0.0",
+  "description": "Mac menu bar app for Mail Scheduler events",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build-mac": "electron-packager . Iris --app-name=Iris --platform=darwin --arch=arm64 --icon=assets/icon.icns --out=release-builds --overwrite"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "menubar": "^9.5.0"
+  }
+}
