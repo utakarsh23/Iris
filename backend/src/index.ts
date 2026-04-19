@@ -2,7 +2,7 @@ import express from "express";
 import config from "./config";
 import { connectDB, disconnectDB } from "./db/db";
 import eventRouter from "./api/eventRouter";
-import { processEmails } from "./service/pipelineService";
+import { processEmails, triggerGoogleScript } from "./service/pipelineService";
 import { markMissedEvents } from "./service/eventService";
 import cron from "node-cron";
 import { logger } from "./utils/logger";
@@ -61,14 +61,12 @@ async function startCron() {
         await markMissedEvents();
     });
 
-    // Keeping your previous 1-minute email processing cron commented/running below if you ever re-enable it
-    // cron.schedule("* * * * *", async () => {
-    //     logger.info("Cron job triggered automatically");
-    //     await processEmails();
-    // });
+    // Run once a day at 1:00 AM to fetch new emails using the existing google script trigger function
+    cron.schedule("0 1 * * *", async () => {
+        logger.info("Cron: Running daily 1 AM email fetch via Google Apps Script");
+        await triggerGoogleScript();
+    });
 }
-
-
 
 process.on('SIGINT', closeServer);
 process.on('SIGTERM', closeServer);

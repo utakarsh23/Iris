@@ -68,4 +68,15 @@ async function processWebhookEmails(emails: any[]) {
     }
 }
 
-export { processEmails, processWebhookEmails };
+async function triggerGoogleScript() {
+    const googleScriptUrl = process.env.GOOGLE_SCRIPT_URL;
+    if (!googleScriptUrl) {
+        logger.error("GOOGLE_SCRIPT_URL not configured in .env");
+        return;
+    }
+    
+    await fetch(googleScriptUrl, { method: 'GET' });
+    logger.info("Sent trigger to Google Apps Script successfully");
+}
+
+export { processEmails, processWebhookEmails, triggerGoogleScript };

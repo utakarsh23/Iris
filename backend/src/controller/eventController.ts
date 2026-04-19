@@ -1,7 +1,7 @@
 import { Event, IEvent } from "../model/eventsSchema";
 import { updateEvent, deleteEvent, getAllUpcomingEvents, eventsByDate, pastEvents, allEvents, searchEvents } from "../service/eventService";
 import { Request, Response } from 'express';
-import { processWebhookEmails } from "../service/pipelineService";
+import { processWebhookEmails, triggerGoogleScript } from "../service/pipelineService";
 import { dailyMailSummary } from "../service/aiService";
 import { DailySummary } from "../model/dailySummary";
 import { logger } from "../utils/logger";
@@ -92,15 +92,7 @@ async function getAllEvents(req: Request, res: Response) {
 
 async function loadNewEvents(req: Request, res: Response) {
     try {
-        const googleScriptUrl = config.googleScriptUrl;
-        if (!googleScriptUrl) {
-            return res.status(500).json({ message: "GOOGLE_SCRIPT_URL not configured in .env" });
-        }
-
-        // This pings the Google Script, which will then fetch emails and webhook back to us
-        await fetch(googleScriptUrl, { method: 'GET' });
-        logger.info("Sent trigger to Google Apps Script");
-
+        await triggerGoogleScript();
         return res.status(200).json({ message: "Trigger sent to Google Apps Script successfully" });
     } catch (error) {
         logger.error("Error triggering events via Google Script fetch", error);
