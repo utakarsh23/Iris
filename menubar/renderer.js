@@ -625,6 +625,9 @@ setInterval(async () => {
     } catch (err) {
         // Silently fail in background if backend is offline
     }
+
+    // Also refresh the AI daily summary in the menubar
+    fetchDailySummary();
 }, 60000);
 
 // Ping backend /health endpoint every 10 minutes to keep Render instance awake

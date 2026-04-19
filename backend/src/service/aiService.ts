@@ -40,10 +40,13 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
     - "medium": Scheduled group activities, collaborative sessions, or non-critical but time-bound commitments
     - "low": Informational gatherings, optional workshops, or low-stakes participation events
 
-    STRICT TITLE FORMATTING:
-    - Extract ONLY the core event name or entity (e.g., "Build with AI Webinar", "Solution Challenge Prototype", "FLAT Internal Assessment 1").
-    - DO NOT include prefixes, statuses, or action verbs (e.g., strip "Reminder:", "Update:", "Rescheduled:", "Action Required:", "Join the", "Submit your").
-    - Follow a consistent, neutral Noun-Phrase pattern without filler words to ensure the exact same event heavily yields the exact same title string across multiple emails.
+    STRICT TITLE FORMATTING (CRITICAL FOR DEDUPLICATION):
+    - Title MUST follow this exact pattern: "EventType:Core Event Name"
+    - EventType must be one of: Webinar, Assignment, Exam, Interview, Meeting, Hackathon, Workshop, Submission, Form, Event
+    - Core Event Name must be the shortest unique identifier for the event, using ONLY proper nouns and key terms
+    - Examples: "Webinar:Build a Startup with AI", "Exam:FLAT IA 1 & 2", "Assignment:Re-Tutorial Home", "Submission:Solution Challenge Prototype", "Form:Pending Exposure MNCC Course", "Hackathon:ETHGlobal Open Agents"
+    - NEVER add filler words like "Join", "Attend", "Submit your", years, or dates into the title
+    - The SAME event from the SAME sender MUST ALWAYS produce the EXACT SAME title string
 
     The current date and time is: ${currentDate}. Use this to determine if an event is already missed.
 
@@ -54,7 +57,7 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
     [
       {
         "emailIndex": number, // MUST match the EmailIndex of the source email
-        "title": "Exact stripped email Subject line",
+        "title": "EventType:Core Event Name",
         "description": "One-line description of what the user needs to do",
         "eventType": "ASSIGNMENT" | "EVENT" | "INTERVIEW" | "EXAM" | "MEETING" | "OTHER",
         "date": "YYYY-MM-DD",
