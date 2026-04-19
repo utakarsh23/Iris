@@ -115,7 +115,16 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
 
 async function dailyMailSummary(events: any[]): Promise<string> {
     try {
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         if (!events || events.length === 0) {
+            await DailySummary.findOneAndUpdate(
+                { date: today },
+                { summary: "No tasks scheduled for today. Enjoy your free day!" },
+                { upsert: true, new: true }
+            );
             return "No tasks scheduled for today. Enjoy your free day!";
         }
 
@@ -131,9 +140,6 @@ async function dailyMailSummary(events: any[]): Promise<string> {
         const summary = response.text()?.trim() || "Have a great day!";
 
         // Save to DB
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
         await DailySummary.findOneAndUpdate(
             { date: today },
             { summary },
