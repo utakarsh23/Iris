@@ -30,7 +30,7 @@ const eventSchema = new mongoose.Schema<IEvent>({
     eventType: {
         type: String,
         required: true,
-        enum: ['ASSIGNMENT', 'EVENT', 'INTERVIEW', 'EXAM', 'MEETING', 'OTHER']
+        enum: ['ASSIGNMENT', 'EVENT', 'INTERVIEW', 'EXAM', 'MEETING', 'WEBINAR', 'WORKSHOP', 'SUBMISSION', 'FORM', 'HACKATHON', 'OTHER']
     },
     date: {
         type: Date,
