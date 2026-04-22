@@ -110,7 +110,7 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
 
     } catch (error) {
         logger.error("Error generating summary from Gemini", error);
-        return [];
+        throw error;
     }
 }
 

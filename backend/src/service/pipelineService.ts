@@ -51,7 +51,15 @@ async function processWebhookEmails(emails: any[]) {
             return [];
         }
 
-        const events = await summarizeEmails(nonExistingMails);
+        // AI extraction — if this fails, nothing gets saved to DB
+        let events: any[];
+        try {
+            events = await summarizeEmails(nonExistingMails);
+        } catch (aiError) {
+            logger.error("AI extraction failed. Skipping DB persistence so emails can be retried.", aiError);
+            throw aiError;
+        }
+
         logger.info(`Extracted ${events.length} actionable events via AI`);
 
         await saveEvents(events);
