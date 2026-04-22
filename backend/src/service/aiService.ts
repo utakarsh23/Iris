@@ -6,7 +6,25 @@ import { IDailySummary, DailySummary } from "../model/dailySummary";
 import { logger } from "../utils/logger";
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+const MAX_RETRIES = 3;
+const INITIAL_DELAY_MS = 2000;
+
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        } catch (error: any) {
+            const isRetryable = error?.message?.includes("503") || error?.message?.includes("429");
+            if (!isRetryable || attempt === retries) throw error;
+            const delay = INITIAL_DELAY_MS * Math.pow(2, attempt);
+            logger.warn(`Gemini API error (attempt ${attempt + 1}/${retries + 1}), retrying in ${delay}ms...`);
+            await new Promise(res => setTimeout(res, delay));
+        }
+    }
+    throw new Error("Retry exhausted"); // unreachable but satisfies TS
+}
 
 
 
@@ -76,7 +94,7 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
 
     try {
         logger.info(`Sending ${emails.length} emails to Gemini AI for extraction`);
-        const result = await model.generateContent(prompt);
+        const result = await retryWithBackoff(() => model.generateContent(prompt));
         const response = await result.response;
         const aiGenerateText = response.text() || "[]";
 
@@ -136,7 +154,7 @@ async function dailyMailSummary(events: any[]): Promise<string> {
         const prompt = `You are Iris, a personal schedule assistant. Summarise the user's day in ONE short casual sentence (20-30 words). Be friendly. Mention the most important task by name.\n\nToday's tasks:\n${context}`;
 
         logger.info("Generating daily AI briefing");
-        const result = await model.generateContent(prompt);
+        const result = await retryWithBackoff(() => model.generateContent(prompt));
         const response = await result.response;
         const summary = response.text()?.trim() || "Have a great day!";
 
