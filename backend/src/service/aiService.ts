@@ -6,7 +6,7 @@ import { IDailySummary, DailySummary } from "../model/dailySummary";
 import { logger } from "../utils/logger";
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const MAX_RETRIES = 3;
 const INITIAL_DELAY_MS = 2000;
