@@ -59,7 +59,7 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
         "emailIndex": number, // MUST match the EmailIndex of the source email
         "title": "EventType:Core Event Name",
         "description": "One-line description of what the user needs to do",
-        "eventType": "ASSIGNMENT" | "EVENT" | "INTERVIEW" | "EXAM" | "MEETING" | "OTHER",
+        "eventType": "ASSIGNMENT" | "EVENT" | "INTERVIEW" | "EXAM" | "MEETING" | "WEBINAR" | "WORKSHOP" | "SUBMISSION" | "FORM" | "HACKATHON" | "OTHER",
         "date": "YYYY-MM-DD",
         "time": "HH:MM", // Use "00:00" if no specific time is mentioned
         "eventStatus": "pending" | "missed" | "cancelled" | "completed" | "rescheduled",

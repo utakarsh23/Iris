@@ -5,7 +5,7 @@ import { generateEventHash } from "../service/hashingService";
 interface IEvent extends Document {
     title: string; //title of the event(AI WEBINAR/DSA ASSIGNMENT SUBMISSION)
     description: string;
-    eventType: "ASSIGNMENT" | "EVENT" | "INTERVIEW" | "EXAM" | "MEETING" | "OTHER";
+    eventType: "ASSIGNMENT" | "EVENT" | "INTERVIEW" | "EXAM" | "MEETING" | "WEBINAR" | "WORKSHOP" | "SUBMISSION" | "FORM" | "HACKATHON" | "OTHER";
     date: Date; //to be happening date
     time: string; //to be happening time
     eventStatus: "pending" | "missed" | "cancelled" | "completed" | "rescheduled";
