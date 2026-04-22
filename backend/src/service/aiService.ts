@@ -24,6 +24,7 @@ async function summarizeEmails(emails: any[]): Promise<any[]> {
     EXTRACT an event ONLY if the email contains ALL of the following:
     - A specific date or deadline (explicit or clearly implied, e.g., "by Friday", "April 20th", "tomorrow 3 PM")
     - A concrete action the recipient must perform (submit, attend, join, appear, complete, present, etc.)
+    - The email contains meetings schedule, interviews, assignments, exams, hackathons, workshops, submissions, forms, events, etc. 
 
     AUTOMATICALLY SKIP any email that is:
     - Mass-sent (newsletters, digests, marketing, notifications from platforms)
