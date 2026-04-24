@@ -61,9 +61,9 @@ async function startCron() {
         await markMissedEvents();
     });
 
-    // Run once a day at 1:00 AM to fetch new emails using the existing google script trigger function
-    cron.schedule("0 1 * * *", async () => {
-        logger.info("Cron: Running daily 1 AM email fetch via Google Apps Script");
+    // Run twice a day at 1:00 AM and 1:00 PM to fetch new emails using the existing google script trigger function
+    cron.schedule("0 1,13 * * *", async () => {
+        logger.info("Cron: Running 1 AM / 1 PM email fetch via Google Apps Script");
         await triggerGoogleScript();
     });
 }
