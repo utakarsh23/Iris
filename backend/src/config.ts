@@ -19,6 +19,7 @@ const config = {
             rejectUnauthorized: false
         }
     },
+    geminiModel: process.env.GEMINI_MODEL!,
     googleScriptUrl: process.env.GOOGLE_SCRIPT_URL!,
     calendarToken: process.env.CALENDAR_TOKEN || "",
 };
