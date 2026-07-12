@@ -4,20 +4,60 @@ import { DailySummary } from '../model/dailySummary';
 import { logger } from "../utils/logger";
 import config from "../config";
 
-function formatIcsDate(date: Date, timeStr: string): string {
-    const d = new Date(date);
-    const [hours, minutes] = (timeStr && timeStr !== "00:00" ? timeStr : "09:00").split(':');
+function escapeIcsText(text: string): string {
+    if (!text) return "";
+    return text
+        .replace(/\\/g, "\\\\")
+        .replace(/;/g, "\\;")
+        .replace(/,/g, "\\,")
+        .replace(/\r?\n/g, "\\n");
+}
 
-    // We assume the time extracted is local to the user, but ICS defaults to UTC if 'Z' is appended. 
-    // To make it show correctly in Apple Calendar, we'll format it dynamically.
-    // If we just output it as a "floating" local time (no Z), it uses the user's current timezone!
+function foldIcsLine(line: string): string {
+    const chars = Array.from(line);
+    if (chars.length <= 70) return line;
+    let result = "";
+    for (let i = 0; i < chars.length; i += 70) {
+        const chunk = chars.slice(i, i + 70).join("");
+        if (i > 0) {
+            result += "\r\n " + chunk;
+        } else {
+            result += chunk;
+        }
+    }
+    return result;
+}
+
+function getIcsStartAndEnd(date: Date, timeStr: string): { start: string, end: string } {
+    const d = new Date(date);
+    const [hours, minutes] = (timeStr && timeStr !== "00:00" ? timeStr : "09:00").split(':').map(Number);
+
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth();
+    const day = d.getUTCDate();
+
+    const startMs = Date.UTC(year, month, day, hours, minutes, 0);
+    const endMs = startMs + 60 * 60 * 1000; // Default duration of 1 hour
+
+    const start = new Date(startMs);
+    const end = new Date(endMs);
+
     const pad = (n: number) => n.toString().padStart(2, '0');
 
-    const year = d.getFullYear();
-    const month = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
+    const format = (dateObj: Date) => {
+        const y = dateObj.getUTCFullYear();
+        const m = pad(dateObj.getUTCMonth() + 1);
+        const dayVal = pad(dateObj.getUTCDate());
+        const h = pad(dateObj.getUTCHours());
+        const min = pad(dateObj.getUTCMinutes());
+        const s = pad(dateObj.getUTCSeconds());
+        return `${y}${m}${dayVal}T${h}${min}${s}`;
+    };
 
-    return `${year}${month}${day}T${hours}${minutes}00`;
+    return {
+        start: format(start),
+        end: format(end)
+    };
 }
 
 export const getCalendarFeed = async (req: Request, res: Response) => {
@@ -42,64 +82,67 @@ export const getCalendarFeed = async (req: Request, res: Response) => {
 
         const nowStamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-        for (const event of events) {
-            const dtstart = formatIcsDate(event.date, event.time);
+        const appendLine = (line: string) => {
+            icsContent += foldIcsLine(line) + "\r\n";
+        };
 
-            icsContent += "BEGIN:VEVENT\r\n";
-            icsContent += `UID:${event.eventHash}@iris.app\r\n`;
-            icsContent += `DTSTAMP:${nowStamp}\r\n`;
-            icsContent += `DTSTART;TZID=Asia/Kolkata:${dtstart}\r\n`;
-            // Defaulting duration to 1 hour
-            icsContent += `DTEND;TZID=Asia/Kolkata:${dtstart.substring(0, 9)}${parseInt(dtstart.substring(9, 11)) + 1}${dtstart.substring(11)}\r\n`;
-            icsContent += `SUMMARY:${event.title}\r\n`;
-            icsContent += `DESCRIPTION:Priority: ${event.priority}\\nSender: ${event.senderEmail}\\n\\n${event.description}\r\n`;
+        for (const event of events) {
+            const { start, end } = getIcsStartAndEnd(event.date, event.time);
+
+            appendLine("BEGIN:VEVENT");
+            appendLine(`UID:${event.eventHash}@iris.app`);
+            appendLine(`DTSTAMP:${nowStamp}`);
+            appendLine(`DTSTART;TZID=Asia/Kolkata:${start}`);
+            appendLine(`DTEND;TZID=Asia/Kolkata:${end}`);
+            appendLine(`SUMMARY:${escapeIcsText(event.title)}`);
+            appendLine(`DESCRIPTION:${escapeIcsText(`Priority: ${event.priority}\nSender: ${event.senderEmail}\n\n${event.description}`)}`);
             if (event.emailUrl) {
-                icsContent += `URL:${event.emailUrl}\r\n`;
+                appendLine(`URL:${event.emailUrl}`);
             }
             // 60 minute warning alert
-            icsContent += "BEGIN:VALARM\r\n";
-            icsContent += "ACTION:DISPLAY\r\n";
-            icsContent += `DESCRIPTION:${event.title}\r\n`;
-            icsContent += "TRIGGER:-PT60M\r\n";
-            icsContent += "END:VALARM\r\n";
+            appendLine("BEGIN:VALARM");
+            appendLine("ACTION:DISPLAY");
+            appendLine(`DESCRIPTION:${escapeIcsText(event.title)}`);
+            appendLine("TRIGGER:-PT60M");
+            appendLine("END:VALARM");
             // 5 minute warning alert
-            icsContent += "BEGIN:VALARM\r\n";
-            icsContent += "ACTION:DISPLAY\r\n";
-            icsContent += `DESCRIPTION:${event.title}\r\n`;
-            icsContent += "TRIGGER:-PT5M\r\n";
-            icsContent += "END:VALARM\r\n";
+            appendLine("BEGIN:VALARM");
+            appendLine("ACTION:DISPLAY");
+            appendLine(`DESCRIPTION:${escapeIcsText(event.title)}`);
+            appendLine("TRIGGER:-PT5M");
+            appendLine("END:VALARM");
 
-            icsContent += "END:VEVENT\r\n";
+            appendLine("END:VEVENT");
         }
 
         // Add today's Daily AI Briefing as an all-day event with an 8 AM alert
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-        const dailySummary = await DailySummary.findOne({ date: startOfToday });
+        const kolkataDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const targetDate = new Date(Date.UTC(kolkataDate.getFullYear(), kolkataDate.getMonth(), kolkataDate.getDate()));
+        const dailySummary = await DailySummary.findOne({ date: targetDate });
 
         if (dailySummary) {
             const pad = (n: number) => n.toString().padStart(2, '0');
-            const year = startOfToday.getFullYear();
-            const month = pad(startOfToday.getMonth() + 1);
-            const day = pad(startOfToday.getDate());
+            const year = targetDate.getUTCFullYear();
+            const month = pad(targetDate.getUTCMonth() + 1);
+            const day = pad(targetDate.getUTCDate());
             const dateStr = `${year}${month}${day}`;
 
-            icsContent += "BEGIN:VEVENT\r\n";
-            icsContent += `UID:daily-summary-${dateStr}@iris.app\r\n`;
-            icsContent += `DTSTAMP:${nowStamp}\r\n`;
+            appendLine("BEGIN:VEVENT");
+            appendLine(`UID:daily-summary-${dateStr}@iris.app`);
+            appendLine(`DTSTAMP:${nowStamp}`);
             // All day event format
-            icsContent += `DTSTART;VALUE=DATE:${dateStr}\r\n`;
-            icsContent += `SUMMARY:🤖 Iris Daily Briefing\r\n`;
-            icsContent += `DESCRIPTION:${dailySummary.summary}\r\n`;
+            appendLine(`DTSTART;VALUE=DATE:${dateStr}`);
+            appendLine(`SUMMARY:🤖 Iris Daily Briefing`);
+            appendLine(`DESCRIPTION:${escapeIcsText(dailySummary.summary)}`);
 
             // 8:00 AM Trigger (8 hours after start of the day)
-            icsContent += "BEGIN:VALARM\r\n";
-            icsContent += "ACTION:DISPLAY\r\n";
-            icsContent += `DESCRIPTION:Iris Daily Briefing\r\n`;
-            icsContent += `TRIGGER:PT8H\r\n`;
-            icsContent += "END:VALARM\r\n";
+            appendLine("BEGIN:VALARM");
+            appendLine("ACTION:DISPLAY");
+            appendLine(`DESCRIPTION:Iris Daily Briefing`);
+            appendLine(`TRIGGER:PT8H`);
+            appendLine("END:VALARM");
 
-            icsContent += "END:VEVENT\r\n";
+            appendLine("END:VEVENT");
         }
 
         icsContent += "END:VCALENDAR\r\n";
